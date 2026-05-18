@@ -9,6 +9,10 @@
 
 English | [中文](README_zh.md)
 
+<p align="center">
+  <img src="demo.gif" alt="Demo" width="200">
+</p>
+
 A native Swift SDK for the [Hyperliquid](https://hyperliquid.xyz) decentralized perpetual exchange. It provides a complete, type-safe interface for REST API querying, WebSocket real-time streaming, EIP-712 signed trading operations, and encrypted local storage — all without relying on web3.js or any JavaScript bridge.
 
 ## Features

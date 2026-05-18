@@ -9,6 +9,10 @@
 
 [English](README.md) | 中文
 
+<p align="center">
+  <img src="demo.gif" alt="演示" width="200">
+</p>
+
 一个原生 Swift SDK，用于 [Hyperliquid](https://hyperliquid.xyz) 去中心化永续合约交易所。提供完整的类型安全接口，涵盖 REST API 查询、WebSocket 实时数据流、EIP-712 签名交易操作和加密本地存储——无需依赖 web3.js 或任何 JavaScript 桥接。
 
 ## 功能特性
