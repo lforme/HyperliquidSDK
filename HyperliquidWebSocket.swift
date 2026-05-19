@@ -84,7 +84,7 @@ public class HyperliquidWebSocket {
         socket = WebSocket(request: request)
         socket?.delegate = self
         socket?.connect()
-        print("[HLWS] Connecting to \(baseURL)")
+        HLLog.info("Connecting to \(baseURL)")
     }
 
     /// Closes the WebSocket connection.
@@ -96,7 +96,7 @@ public class HyperliquidWebSocket {
     public func subscribeAllMids() {
         let payload: [String: Any] = ["method": "subscribe", "subscription": ["type": "allMids"]]
         sendSubscription(payload)
-        print("[HLWS] Subscribe allMids")
+        HLLog.info("Subscribe allMids")
     }
 
     /// Subscribes to the `l2Book` channel for real-time L2 order book updates.
@@ -111,7 +111,7 @@ public class HyperliquidWebSocket {
         }
         let payload: [String: Any] = ["method": "subscribe", "subscription": subscription]
         sendSubscription(payload)
-        print("[HLWS] Subscribe l2Book coin=\(coin)")
+        HLLog.info("Subscribe l2Book coin=\(coin)")
     }
 
     /// Subscribes to the `userEvents` channel for real-time user-specific events.
@@ -120,7 +120,7 @@ public class HyperliquidWebSocket {
     public func subscribeUserEvents(address: String) {
         let payload: [String: Any] = ["method": "subscribe", "subscription": ["type": "userEvents", "user": address]]
         sendSubscription(payload)
-        print("[HLWS] Subscribe userEvents address=\(address)")
+        HLLog.info("Subscribe userEvents address=\(address)")
     }
 
     /// Subscribes to the `orderUpdates` channel for real-time order status changes.
@@ -129,7 +129,7 @@ public class HyperliquidWebSocket {
     public func subscribeOrderUpdates(address: String) {
         let payload: [String: Any] = ["method": "subscribe", "subscription": ["type": "orderUpdates", "user": address]]
         sendSubscription(payload)
-        print("[HLWS] Subscribe orderUpdates address=\(address)")
+        HLLog.info("Subscribe orderUpdates address=\(address)")
     }
 
     /// Subscribes to the `candle` channel for real-time OHLCV candlestick updates.
@@ -192,10 +192,10 @@ extension HyperliquidWebSocket: WebSocketDelegate {
     public func didReceive(event: Starscream.WebSocketEvent, client: Starscream.WebSocketClient) {
         switch event {
         case .connected:
-            print("[HLWS] Connected!")
+            HLLog.info("Connected!")
             delegate?.onConnected()
         case .disconnected(let reason, let code):
-            print("[HLWS] Disconnected code=\(code) reason=\(reason)")
+            HLLog.warning("Disconnected code=\(code) reason=\(reason)")
             let error = NSError(domain: "HyperliquidWS", code: Int(code), userInfo: [NSLocalizedDescriptionKey: reason])
             delegate?.onDisconnected(error: error)
         case .text(let string):
@@ -207,7 +207,7 @@ extension HyperliquidWebSocket: WebSocketDelegate {
             NetworkUsageTracker.shared.addWSBytes(data.count)
             delegate?.onMessage(data: data)
         case .error(let error):
-            print("[HLWS] Error: \(error?.localizedDescription ?? "nil")")
+            HLLog.error("Error: \(error?.localizedDescription ?? "nil")")
             delegate?.onError(error: error ?? NSError(domain: "HyperliquidWS", code: -1, userInfo: nil))
         case .ping, .pong, .viabilityChanged, .reconnectSuggested:
             break

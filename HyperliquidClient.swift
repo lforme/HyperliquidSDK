@@ -85,7 +85,7 @@ public class HyperliquidClient {
                 try await self.info.loadMeta()
                 try await self.exchange?.info.loadMeta()
             } catch {
-                print("[HLClient] loadMeta error: \(error)")
+                HLLog.error("loadMeta error: \(error)")
             }
         }
     }
@@ -106,14 +106,14 @@ public class HyperliquidClient {
         )
         self.exchange?.queryAddress = mainWallet
         self._mainWallet = mainWallet
-        print("[HLClient] connect mainWallet=\(mainWallet), signingAddress=\(exchange?.walletAddress ?? "nil")")
+        HLLog.info("connect mainWallet=\(mainWallet), signingAddress=\(exchange?.walletAddress ?? "nil")")
         Task {
             do {
                 try await self.info.loadMeta()
                 try await self.exchange?.info.loadMeta()
-                print("[HLClient] meta loaded for both info instances")
+                HLLog.info("meta loaded for both info instances")
             } catch {
-                print("[HLClient] loadMeta error: \(error)")
+                HLLog.error("loadMeta error: \(error)")
             }
         }
     }
@@ -153,7 +153,7 @@ public class HyperliquidClient {
         guard let address = walletAddress else {
             throw HLError.signingError("Not connected")
         }
-        print("[HLClient] getUserState address=\(address)")
+        HLLog.info("getUserState address=\(address)")
         return try await info.userState(address: address)
     }
 
@@ -164,8 +164,23 @@ public class HyperliquidClient {
         guard let address = walletAddress else {
             throw HLError.signingError("Not connected")
         }
-        print("[HLClient] getOpenOrders address=\(address)")
+        HLLog.info("getOpenOrders address=\(address)")
         return try await info.openOrders(address: address)
+    }
+
+    /// Retrieves all open orders including trigger/TP/SL orders with full metadata.
+    ///
+    /// Unlike `getOpenOrders()`, this uses the `frontendOpenOrders` endpoint which
+    /// returns `triggerPx`, `isTrigger`, `orderType` (with nested trigger info),
+    /// and other fields needed to identify TP/SL orders.
+    ///
+    /// - Throws: `HLError.signingError` if the client is not connected.
+    public func getFrontendOpenOrders() async throws -> [HLOpenOrder] {
+        guard let address = walletAddress else {
+            throw HLError.signingError("Not connected")
+        }
+        HLLog.info("getFrontendOpenOrders address=\(address)")
+        return try await info.frontendOpenOrders(address: address)
     }
 
     /// Retrieves all fills for the connected wallet.
@@ -175,7 +190,7 @@ public class HyperliquidClient {
         guard let address = walletAddress else {
             throw HLError.signingError("Not connected")
         }
-        print("[HLClient] getUserFills address=\(address)")
+        HLLog.info("getUserFills address=\(address)")
         return try await info.userFills(address: address)
     }
 
@@ -189,7 +204,7 @@ public class HyperliquidClient {
         guard let address = walletAddress else {
             throw HLError.signingError("Not connected")
         }
-        print("[HLClient] getUserFillsByTime address=\(address) startTime=\(startTime)")
+        HLLog.info("getUserFillsByTime address=\(address) startTime=\(startTime)")
         return try await info.userFillsByTime(address: address, startTime: startTime, endTime: endTime)
     }
 

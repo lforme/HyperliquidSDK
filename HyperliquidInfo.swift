@@ -52,7 +52,7 @@ public class HyperliquidInfo: HyperliquidAPI {
         let result: [Any] = try await postRaw("/info", ["type": "metaAndAssetCtxs"]) as! [Any]
         guard let metaDict = result.first as? [String: Any],
               let universe = metaDict["universe"] as? [[String: Any]] else {
-            print("[HLInfo] loadMeta: unexpected format")
+            HLLog.error("loadMeta: unexpected format")
             return
         }
         for (index, assetInfo) in universe.enumerated() {
@@ -63,14 +63,14 @@ public class HyperliquidInfo: HyperliquidAPI {
             assetToSzDecimals[index] = szDecimals
         }
         isMetaLoaded = true
-        print("[HLInfo] loadMeta: \(coinToAsset.count) coins loaded")
+        HLLog.info("loadMeta: \(coinToAsset.count) coins loaded")
     }
 
     /// Returns a dictionary mapping all coin names to their current mid prices.
     public func allMids() async throws -> [String: String] {
         let raw = try await postRaw("/info", ["type": "allMids"])
         guard let dict = raw as? [String: String] else {
-            print("[HLInfo] allMids: unexpected format")
+            HLLog.warning("allMids: unexpected format")
             return [:]
         }
         return dict
@@ -83,7 +83,7 @@ public class HyperliquidInfo: HyperliquidAPI {
     public func metaAndAssetCtxs() async throws -> (meta: [HLCoinInfo], ctxs: [HLAssetCtx]) {
         let raw: Any = try await postRaw("/info", ["type": "metaAndAssetCtxs"])
         guard let array = raw as? [Any], array.count >= 2 else {
-            print("[HLInfo] metaAndAssetCtxs: unexpected format, type=\(type(of: raw))")
+            HLLog.error("metaAndAssetCtxs: unexpected format, type=\(type(of: raw))")
             throw HLError.decodingError(NSError(domain: "HLInfo", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid metaAndAssetCtxs format"]))
         }
 
@@ -107,7 +107,7 @@ public class HyperliquidInfo: HyperliquidAPI {
             }
         }
 
-        print("[HLInfo] Decoded \(metaList.count) coins, \(ctxsList.count) ctxs")
+        HLLog.info("Decoded \(metaList.count) coins, \(ctxsList.count) ctxs")
         return (meta: metaList, ctxs: ctxsList)
     }
 
@@ -129,16 +129,81 @@ public class HyperliquidInfo: HyperliquidAPI {
 
     /// Retrieves all open orders for a user.
     ///
+    /// Uses manual JSON parsing because trigger orders contain a nested `orderType`
+    /// object (e.g. `{"trigger": {"triggerPx": ..., "tpsl": "tp"}}`) which
+    /// SmartCodable cannot decode into a `String?` field, causing the entire
+    /// order to be silently dropped from the array.
+    ///
     /// - Parameter address: The user's Ethereum address.
     public func openOrders(address: String) async throws -> [HLOpenOrder] {
-        return try await post("/info", ["type": "openOrders", "user": address])
+        let raw = try await postRaw("/info", ["type": "openOrders", "user": address])
+        guard let array = raw as? [[String: Any]] else {
+            HLLog.warning("openOrders: unexpected format, type=\(type(of: raw))")
+            return []
+        }
+        var result: [HLOpenOrder] = []
+        for dict in array {
+            let data = try? JSONSerialization.data(withJSONObject: dict)
+            if var order = HLOpenOrder.deserialize(from: data) {
+                if let orderTypeDict = dict["orderType"] as? [String: Any] {
+                    if let triggerDict = orderTypeDict["trigger"] as? [String: Any] {
+                        order.isTrigger = true
+                        order.triggerCondition = triggerDict["tpsl"] as? String
+                        if order.triggerPx == nil || order.triggerPx?.isEmpty == true {
+                            order.triggerPx = triggerDict["triggerPx"] as? String
+                        }
+                    }
+                }
+                if let isTriggerVal = dict["isTrigger"] as? Bool, isTriggerVal {
+                    order.isTrigger = true
+                }
+                if let tc = dict["triggerCondition"] as? String, !tc.isEmpty {
+                    order.triggerCondition = tc
+                }
+                result.append(order)
+            } else {
+                HLLog.warning("openOrders: failed to decode order: \(dict)")
+            }
+        }
+        HLLog.info("openOrders: decoded \(result.count) orders from \(array.count) raw items, trigger=\(result.filter { $0.isTriggerOrder }.count)")
+        return result
     }
 
     /// Retrieves frontend open orders for a user (includes additional display metadata).
     ///
+    /// Uses the same manual parsing as `openOrders(address:)` for trigger order compatibility.
+    ///
     /// - Parameter address: The user's Ethereum address.
     public func frontendOpenOrders(address: String) async throws -> [HLOpenOrder] {
-        return try await post("/info", ["type": "frontendOpenOrders", "user": address])
+        let raw = try await postRaw("/info", ["type": "frontendOpenOrders", "user": address])
+        guard let array = raw as? [[String: Any]] else {
+            HLLog.warning("frontendOpenOrders: unexpected format")
+            return []
+        }
+        var result: [HLOpenOrder] = []
+        for dict in array {
+            let data = try? JSONSerialization.data(withJSONObject: dict)
+            if var order = HLOpenOrder.deserialize(from: data) {
+                if let orderTypeDict = dict["orderType"] as? [String: Any] {
+                    if let triggerDict = orderTypeDict["trigger"] as? [String: Any] {
+                        order.isTrigger = true
+                        order.triggerCondition = triggerDict["tpsl"] as? String
+                        if order.triggerPx == nil || order.triggerPx?.isEmpty == true {
+                            order.triggerPx = triggerDict["triggerPx"] as? String
+                        }
+                    }
+                }
+                if let isTriggerVal = dict["isTrigger"] as? Bool, isTriggerVal {
+                    order.isTrigger = true
+                }
+                if let tc = dict["triggerCondition"] as? String, !tc.isEmpty {
+                    order.triggerCondition = tc
+                }
+                result.append(order)
+            }
+        }
+        HLLog.info("frontendOpenOrders: decoded \(result.count) orders from \(array.count) raw items, trigger=\(result.filter { $0.isTriggerOrder }.count)")
+        return result
     }
 
     /// Retrieves all fills (trade history) for a user.
@@ -200,7 +265,7 @@ public class HyperliquidInfo: HyperliquidAPI {
         ]
         let raw: Any = try await postRaw("/info", body)
         guard let array = raw as? [[String: Any]] else {
-            print("[HLInfo] candleSnapshot: unexpected format")
+            HLLog.warning("candleSnapshot: unexpected format")
             return []
         }
         var candles: [HLCandle] = []
@@ -313,7 +378,7 @@ public class HyperliquidInfo: HyperliquidAPI {
     public func portfolio(address: String) async throws -> [HLPortfolioPeriod] {
         let raw: Any = try await postRaw("/info", ["type": "portfolio", "user": address])
         guard let array = raw as? [[Any]] else {
-            print("[HLInfo] portfolio: unexpected format")
+            HLLog.warning("portfolio: unexpected format")
             return []
         }
 

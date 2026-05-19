@@ -65,7 +65,7 @@ public class HyperliquidAPI {
                     kCFStreamPropertyHTTPProxyPort as String: port
                 ]
             ]
-            print("[HLAPI] Using proxy: \(host):\(port)")
+            HLLog.info("Using proxy: \(host):\(port)")
         }
 
         self.session = URLSession(configuration: config)
@@ -96,7 +96,7 @@ public class HyperliquidAPI {
         let jsonData = try JSONSerialization.data(withJSONObject: body)
         request.httpBody = jsonData
 
-        print("[HLAPI] POST \(path) body=\(String(data: jsonData, encoding: .utf8)?.prefix(300) ?? "nil")")
+        HLLog.info("POST \(path) body=\(String(data: jsonData, encoding: .utf8)?.prefix(300) ?? "nil")")
 
         let (data, response) = try await session.data(for: request)
         NetworkUsageTracker.shared.addHTTPBytes(data.count)
@@ -107,7 +107,7 @@ public class HyperliquidAPI {
 
         guard httpResponse.statusCode == 200 else {
             let bodyStr = String(data: data.prefix(500), encoding: .utf8) ?? ""
-            print("[HLAPI] HTTP \(httpResponse.statusCode) for \(path): \(bodyStr)")
+            HLLog.error("HTTP \(httpResponse.statusCode) for \(path): \(bodyStr)")
             throw HLError.httpError(statusCode: httpResponse.statusCode)
         }
 
@@ -115,14 +115,14 @@ public class HyperliquidAPI {
             guard let result = T.deserialize(from: data) else {
                 throw HLError.decodingError(NSError(domain: "HLAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "SmartCodable deserialize returned nil for \(T.self)"]))
             }
-            print("[HLAPI] Decoded \(T.self) successfully, \(data.count) bytes")
+            HLLog.info("Decoded \(T.self) successfully, \(data.count) bytes")
             return result
         } catch let error as HLError {
             throw error
         } catch {
             let rawStr = String(data: data.prefix(1000), encoding: .utf8) ?? "nil"
-            print("[HLAPI] Decode error for \(T.self): \(error.localizedDescription)")
-            print("[HLAPI] Raw response (\(data.count) bytes): \(rawStr)")
+            HLLog.error("Decode error for \(T.self): \(error.localizedDescription)")
+            HLLog.debug("Raw response (\(data.count) bytes): \(rawStr)")
             throw HLError.decodingError(error)
         }
     }
@@ -151,7 +151,7 @@ public class HyperliquidAPI {
         let jsonData = try JSONSerialization.data(withJSONObject: body)
         request.httpBody = jsonData
 
-        print("[HLAPI] POST order \(path) body=\(String(data: jsonData, encoding: .utf8)?.prefix(300) ?? "nil")")
+        HLLog.info("POST order \(path) body=\(String(data: jsonData, encoding: .utf8)?.prefix(300) ?? "nil")")
 
         let (data, response) = try await session.data(for: request)
         NetworkUsageTracker.shared.addHTTPBytes(data.count)
@@ -162,26 +162,26 @@ public class HyperliquidAPI {
 
         guard httpResponse.statusCode == 200 else {
             let bodyStr = String(data: data.prefix(500), encoding: .utf8) ?? ""
-            print("[HLAPI] HTTP \(httpResponse.statusCode) for \(path): \(bodyStr)")
+            HLLog.error("HTTP \(httpResponse.statusCode) for \(path): \(bodyStr)")
             throw HLError.httpError(statusCode: httpResponse.statusCode)
         }
 
         let rawStr = String(data: data.prefix(2000), encoding: .utf8) ?? ""
-        print("[HLAPI] Order response (\(data.count) bytes): \(rawStr)")
+        HLLog.debug("Order response (\(data.count) bytes): \(rawStr)")
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw HLError.decodingError(NSError(domain: "HLAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON"]))
         }
 
         let result = parseOrderResult(json)
-        print("[HLAPI] Parsed result: status=\(result.status), error=\(result.error ?? "nil"), isSuccess=\(result.isSuccess)")
+        HLLog.info("Parsed result: status=\(result.status), error=\(result.error ?? "nil"), isSuccess=\(result.isSuccess)")
         if let resp = result.response, let dataObj = resp.data, let statuses = dataObj.statuses {
             for (i, s) in statuses.enumerated() {
                 switch s {
-                case .filled(let f): print("[HLAPI]   status[\(i)]: filled totalSz=\(f.totalSz) avgPx=\(f.avgPx ?? "nil")")
-                case .resting(let r): print("[HLAPI]   status[\(i)]: resting oid=\(r.oid)")
-                case .success(let msg): print("[HLAPI]   status[\(i)]: success=\(msg)")
-                case .error(let e): print("[HLAPI]   status[\(i)]: error=\(e)")
+                case .filled(let f): HLLog.info("  status[\(i)]: filled totalSz=\(f.totalSz) avgPx=\(f.avgPx ?? "nil")")
+                case .resting(let r): HLLog.info("  status[\(i)]: resting oid=\(r.oid)")
+                case .success(let msg): HLLog.info("  status[\(i)]: success=\(msg)")
+                case .error(let e): HLLog.error("  status[\(i)]: error=\(e)")
                 }
             }
         }
@@ -272,7 +272,7 @@ public class HyperliquidAPI {
         let jsonData = try JSONSerialization.data(withJSONObject: body)
         request.httpBody = jsonData
 
-        print("[HLAPI] POST raw \(path) body=\(String(data: jsonData, encoding: .utf8)?.prefix(300) ?? "nil")")
+        HLLog.info("POST raw \(path) body=\(String(data: jsonData, encoding: .utf8)?.prefix(300) ?? "nil")")
 
         let (data, response) = try await session.data(for: request)
         NetworkUsageTracker.shared.addHTTPBytes(data.count)
@@ -283,12 +283,12 @@ public class HyperliquidAPI {
 
         guard httpResponse.statusCode == 200 else {
             let bodyStr = String(data: data.prefix(500), encoding: .utf8) ?? ""
-            print("[HLAPI] HTTP \(httpResponse.statusCode) for \(path): \(bodyStr)")
+            HLLog.error("HTTP \(httpResponse.statusCode) for \(path): \(bodyStr)")
             throw HLError.httpError(statusCode: httpResponse.statusCode)
         }
 
         let rawStr = String(data: data.prefix(500), encoding: .utf8) ?? ""
-        print("[HLAPI] Raw response (\(data.count) bytes): \(rawStr)")
+        HLLog.debug("Raw response (\(data.count) bytes): \(rawStr)")
 
         return try JSONSerialization.jsonObject(with: data)
     }

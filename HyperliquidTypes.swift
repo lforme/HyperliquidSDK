@@ -310,7 +310,9 @@ public struct HLOpenOrder: SmartCodableX {
     public var timestamp: Int = 0
     /// Original order size at placement time.
     public var origSz: String?
-    /// Order type, e.g. "limit", "trigger".
+    /// Order type. For limit orders this is a string (e.g. "limit");
+    /// for trigger orders the API returns a nested object which SmartCodable
+    /// will skip — use `isTriggerOrder` or `tpslType` instead.
     public var orderType: String?
     /// Whether this order can only reduce an existing position.
     public var reduceOnly: Bool?
@@ -318,9 +320,27 @@ public struct HLOpenOrder: SmartCodableX {
     public var triggerPx: String?
     /// Time-in-force setting for the order.
     public var tif: String?
-    /// Returns `true` if this is a trigger/stop order (side == "A").
+    /// Whether this is a trigger/stop order (API field).
+    public var isTrigger: Bool?
+    /// Trigger condition string, e.g. "tp" or "sl".
+    public var triggerCondition: String?
+    /// Whether this is a position-level TP/SL order.
+    public var isPositionTpsl: Bool?
+    /// Returns `true` if this is a trigger/stop order.
     public var isTriggerOrder: Bool {
-        return side == "A"
+        if isTrigger == true { return true }
+        if let tp = triggerPx, !tp.isEmpty { return true }
+        return false
+    }
+    /// Returns the TP/SL type if this is a trigger order with a known type.
+    /// Checks `triggerCondition` first, then falls back to price-based heuristics.
+    public var tpslType: HLTPSL? {
+        guard isTriggerOrder else { return nil }
+        if let tc = triggerCondition?.lowercased() {
+            if tc == "tp" { return .tp }
+            if tc == "sl" { return .sl }
+        }
+        return nil
     }
     public init() {}
 }

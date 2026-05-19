@@ -87,7 +87,7 @@ public class HyperliquidSigning {
         } else {
             throw HLError.signingError("Invalid action type")
         }
-        print("[HLSigning] actionHash: 0x\(hash.toHexString())")
+        HLLog.debug("actionHash: 0x\(hash.toHexString())")
         // Phantom agent: the Hyperliquid L1 signing pattern wraps the action hash
         // in a virtual "Agent" struct that is signed via EIP-712.
         let phantomAgent: [String: Any] = [
@@ -96,7 +96,7 @@ public class HyperliquidSigning {
         ]
         let payload = l1Payload(phantomAgent: phantomAgent)
         let signature = try signEIP712(payload: payload)
-        print("[HLSigning] signature: r=\(signature["r"] ?? ""), s=\(signature["s"] ?? ""), v=\(signature["v"] ?? "")")
+        HLLog.debug("signature: r=\(signature["r"] ?? ""), s=\(signature["s"] ?? ""), v=\(signature["v"] ?? "")")
         return signature
     }
 
@@ -234,20 +234,20 @@ public class HyperliquidSigning {
             types: payload.allTypes,
             data: payload.domainDict
         )
-        print("[HLSigning] domainSeparator: 0x\(domainSeparator.toHexString())")
+        HLLog.debug("domainSeparator: 0x\(domainSeparator.toHexString())")
         let messageHash = hashStruct(
             type: payload.primaryType,
             types: payload.allTypes,
             data: payload.message
         )
-        print("[HLSigning] messageHash: 0x\(messageHash.toHexString())")
+        HLLog.debug("messageHash: 0x\(messageHash.toHexString())")
 
         // EIP-712: typedDataHash = 0x19 0x01 || domainSeparator || messageHash
         var typedDataHash = Data([0x19, 0x01])
         typedDataHash.append(domainSeparator)
         typedDataHash.append(messageHash)
         let hash = Data(SHA3(variant: .keccak256).calculate(for: typedDataHash.bytes))
-        print("[HLSigning] typedDataHash: 0x\(hash.toHexString())")
+        HLLog.debug("typedDataHash: 0x\(hash.toHexString())")
 
         guard let sig = SECP256K1.sign(hash: hash, privateKey: privateKey) else {
             throw HLError.signingError("ECDSA signing failed")

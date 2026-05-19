@@ -22,6 +22,7 @@ A native Swift SDK for the [Hyperliquid](https://hyperliquid.xyz) decentralized 
 - **EIP-712 Signed Trading** — Place/cancel orders, update leverage, and close positions with full EIP-712 + phantom-agent signing on secp256k1.
 - **Encrypted Local Storage** — Persistent key-value storage backed by encrypted MMKV, isolated under a dedicated mmap ID.
 - **Network Usage Tracking** — Thread-safe downstream traffic counter for both HTTP and WebSocket, with throttled callbacks.
+- **Structured Logging** — Centralized `HLLog` utility with level filtering, `[HLSDK]` prefix for easy console filtering, enabled by default with toggle support.
 - **MsgPack Encoding** — Deterministic MessagePack encoder for action hashing, with ordered-map support for signature reproducibility.
 - **CocoaPods Support** — Ready to integrate via CocoaPods with all C-library headers and build settings preconfigured.
 
@@ -226,6 +227,30 @@ tracker.onUsageUpdate = { totalBytes in
 }
 ```
 
+### 10. Logging
+
+All SDK operations are logged through `HLLog` with the `[HLSDK]` prefix for easy console filtering. Logging is enabled by default.
+
+```swift
+// Disable all SDK logs
+HLLog.enabled = false
+
+// Re-enable with level filtering (only warnings and errors)
+HLLog.enabled = true
+HLLog.level = .warning
+
+// Available levels: .debug, .info, .warning, .error
+HLLog.level = .debug  // Show everything (default)
+```
+
+Console output format:
+
+```
+[HLSDK] [INFO] [HyperliquidAPI.swift:post(_:_:)] POST /info body=...
+[HLSDK] [ERROR] [HyperliquidInfo.swift:loadMeta()] loadMeta: unexpected format
+[HLSDK] [DEBUG] [HyperliquidSigning.swift:signL1Action(action:nonce:expiresAfter:)] actionHash: 0x...
+```
+
 ## Architecture
 
 ```
@@ -239,7 +264,8 @@ HyperliquidClient
 ├── HyperliquidWebSocket (Real-time streaming)
 │   └── Starscream
 ├── HyperliquidLocalStorage (Encrypted MMKV)
-└── NetworkUsageTracker (Traffic monitoring)
+├── NetworkUsageTracker (Traffic monitoring)
+└── HLLog (Structured logging)
 ```
 
 ## API Reference
